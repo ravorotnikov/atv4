@@ -11,7 +11,6 @@ var KP = (function() {
         { items: 'genres', title: 'Жанр', multi: true, selected: '', filters: { genre: '' } },
         { items: 'countries', title: 'Страны', multi: true, selected: '', filters: { country: '' } },
         { items: '', kind: 'year', title: 'Год', selected: '', filters: { year: '' } },
-        { items: '', kind: 'rating', title: 'Кинопоиск', prefix: 'КП ', selected: '', filters: { kinopoiskMin: '' } },
         { items: '', kind: 'rating', title: 'IMDb', prefix: 'IMDb ', selected: '', filters: { imdbMin: '' } }
     ]
     var optionsLibrary2 = [
@@ -313,11 +312,9 @@ var KP = (function() {
             itemToLoad.filters[key] = options[index].filters[key]
         }
         if (options) {
-            // Пороги рейтингов уходят в API массивом conditions[]; пустой год не отправляем
+            // Порог рейтинга уходит в API массивом conditions[]; пустой год не отправляем
             var conditions = [];
-            if (itemToLoad.filters.kinopoiskMin) { conditions.push('kinopoisk_rating>=' + itemToLoad.filters.kinopoiskMin); }
             if (itemToLoad.filters.imdbMin) { conditions.push('imdb_rating>=' + itemToLoad.filters.imdbMin); }
-            delete itemToLoad.filters.kinopoiskMin;
             delete itemToLoad.filters.imdbMin;
             if (conditions.length) { itemToLoad.filters.conditions = conditions; } else { delete itemToLoad.filters.conditions; }
             if (!itemToLoad.filters.year) { delete itemToLoad.filters.year; }
@@ -1099,14 +1096,17 @@ var KP = (function() {
             }
             var option = optionsLibrary[optionsIndex];
             if (option.kind == "year") {
-                // Готовые периоды по десятилетиям плюс свой диапазон; id — значение параметра year
+                // Свой диапазон первым, затем сброс и готовые периоды по десятилетиям;
+                // id — значение параметра year (порядок кнопок = порядок числовых ключей)
                 var thisYear = new Date().getFullYear();
                 var decade = Math.floor(thisYear / 10) * 10;
-                var n = 1;
+                var n = 0;
+                values = {};
+                values[n++] = { id: 'custom', name: 'Свой диапазон…' };
+                values[n++] = { id: 0, name: 'Отменить выбор' };
                 values[n++] = { id: decade + '-' + Utils.maxCatalogYear(), name: decade + '-е' };
                 for (var d = decade - 10; d >= 1950; d -= 10) { values[n++] = { id: d + '-' + (d + 9), name: d + '-е' }; }
                 values[n++] = { id: Utils.minCatalogYear() + '-1949', name: 'до 1950' };
-                values[n++] = { id: 'custom', name: 'Свой диапазон…' };
                 showDropDown(values, option)
             } else if (option.kind == "rating") {
                 [5, 6, 7, 7.5, 8, 8.5, 9].forEach((rating, index) => values[index + 1] = { id: rating, name: 'от ' + rating });

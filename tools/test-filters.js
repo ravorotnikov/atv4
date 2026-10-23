@@ -98,7 +98,7 @@ const baseGlobals = () => ({
   };
 
   // Индексы в optionsLibrary (см. начало js/kp.js)
-  const GENRE = 2, YEAR = 4, KP_RATING = 5, IMDB = 6;
+  const GENRE = 2, YEAR = 4, IMDB = 5;
 
   // --- Utils.yearRange ---------------------------------------------------
   assert.strictEqual(Utils.yearRange('', ''), '');
@@ -110,7 +110,7 @@ const baseGlobals = () => ({
 
   // --- подписи ------------------------------------------------------------
   assert.strictEqual(Templates.fragments.filterTitle({ title: 'Год', selected: '' }), 'Год');
-  assert.strictEqual(Templates.fragments.filterTitle({ title: 'Кинопоиск', prefix: 'КП ', selected: 'от 7' }), 'КП от 7');
+  assert.strictEqual(Templates.fragments.filterTitle({ title: 'IMDb', prefix: 'IMDb ', selected: 'от 7' }), 'IMDb от 7');
   assert.strictEqual(Templates.fragments.checklistSummary([]), '');
   assert.strictEqual(Templates.fragments.checklistSummary(['Драма']), 'Драма');
   assert.strictEqual(Templates.fragments.checklistSummary(['Драма', 'Комедия']), 'Драма, Комедия');
@@ -122,16 +122,16 @@ const baseGlobals = () => ({
   assert.strictEqual(lastDropdown.title, 'Год');
   const names = lastDropdown.values.map((v) => v.name);
   const decade = Math.floor(thisYear / 10) * 10;
-  assert.deepStrictEqual(names.slice(0, 3), ['Отменить выбор', `${decade}-е`, `${decade - 10}-е`]);
-  assert.ok(names.includes('до 1950') && names.includes('Свой диапазон…'));
-  assert.strictEqual(lastDropdown.values[1].id, `${decade}-${thisYear + 1}`, 'текущее десятилетие захватывает анонсы следующего года');
+  assert.deepStrictEqual(names.slice(0, 4), ['Свой диапазон…', 'Отменить выбор', `${decade}-е`, `${decade - 10}-е`], 'свой диапазон первой кнопкой');
+  assert.strictEqual(names[names.length - 1], 'до 1950');
+  assert.strictEqual(lastDropdown.values[2].id, `${decade}-${thisYear + 1}`, 'текущее десятилетие захватывает анонсы следующего года');
   assert.strictEqual(lastDropdown.values.find((v) => v.name === '2010-е').id, '2010-2019');
   assert.strictEqual(lastDropdown.values.find((v) => v.name === 'до 1950').id, '1912-1949');
 
   modalsOpen = 0; // выпадашку выше открывали только для осмотра
   let f = pick(YEAR, '2010-2019', '2010-е');
   assert.strictEqual(f.year, '2010-2019');
-  assert.ok(!('conditions' in f) && !('kinopoiskMin' in f) && !('imdbMin' in f), 'служебные ключи не уходят');
+  assert.ok(!('conditions' in f) && !('imdbMin' in f), 'служебные ключи не уходят');
   assert.strictEqual(f.sort, '-created');
   assert.strictEqual(lastLockupTitle(), '2010-е');
   assert.strictEqual(modalsOpen, 0, 'модалка закрыта после выбора');
@@ -167,20 +167,16 @@ const baseGlobals = () => ({
   assert.strictEqual(lastLockupTitle(), 'Год');
   console.log('ok  год: свой диапазон и сброс');
 
-  // --- рейтинги -----------------------------------------------------------
-  KP.getDropDown(KP_RATING);
-  assert.strictEqual(lastDropdown.title, 'Кинопоиск');
+  // --- рейтинг IMDb ---------------------------------------------------------
+  KP.getDropDown(IMDB);
+  assert.strictEqual(lastDropdown.title, 'IMDb');
   assert.deepStrictEqual(lastDropdown.values.slice(1).map((v) => v.name), ['от 5', 'от 6', 'от 7', 'от 7.5', 'от 8', 'от 8.5', 'от 9']);
-  f = pick(KP_RATING, 7.5, 'от 7.5');
-  assert.deepStrictEqual(f.conditions, ['kinopoisk_rating>=7.5']);
-  assert.strictEqual(lastLockupTitle(), 'КП от 7.5');
-  f = pick(IMDB, 8, 'от 8');
-  assert.deepStrictEqual(f.conditions, ['kinopoisk_rating>=7.5', 'imdb_rating>=8']);
-  f = pick(KP_RATING, 0, 'Отменить выбор');
-  assert.deepStrictEqual(f.conditions, ['imdb_rating>=8']);
+  f = pick(IMDB, 7.5, 'от 7.5');
+  assert.deepStrictEqual(f.conditions, ['imdb_rating>=7.5']);
+  assert.strictEqual(lastLockupTitle(), 'IMDb от 7.5');
   f = pick(IMDB, 0, 'Отменить выбор');
   assert.ok(!('conditions' in f));
-  console.log('ok  рейтинги Кинопоиска и IMDb через conditions[]');
+  console.log('ok  рейтинг IMDb через conditions[]');
 
   // --- жанры: мультивыбор --------------------------------------------------
   const modalsBefore = modalsOpen;
