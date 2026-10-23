@@ -5,7 +5,12 @@ var Ajax = (function() {
         var str = [];
         for(var p in obj)
             if (obj.hasOwnProperty(p)) {
-                str.push(encodeURIComponent(p) + "=" + obj[p]);
+                if (Array.isArray(obj[p])) {
+                    // Массивы (conditions, quality) уходят как key[]=a&key[]=b
+                    obj[p].forEach(function (value) { str.push(encodeURIComponent(p) + "[]=" + value); });
+                } else {
+                    str.push(encodeURIComponent(p) + "=" + obj[p]);
+                }
             }
         return str.join("&");
     }
@@ -70,6 +75,15 @@ var Ajax = (function() {
             Utils.remove(requests, xhr);
 
             Log.sendSentry(`[${method}] ${url} ${xhr.status}: ${xhr.responseText}`, xhr);
+        };
+        // Без этого обработчика таймаут (xhr.timeout выше) молча терял запрос,
+        // и экран оставался на «Загрузке». Статус 0 — как у сетевой ошибки.
+        xhr.ontimeout = function() {
+            console.log('timeout: ' + url);
+            if (callback) {
+                callback(xhr);
+            }
+            Utils.remove(requests, xhr);
         };
         if (postBody) { xhr.send(postBody); } else { xhr.send(); }
         return xhr;

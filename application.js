@@ -107,6 +107,7 @@ App.onLaunch = function(options) {
         "md5",
         "ajax",
         "api",
+        "hosts",
         "auth",
         "cache",
         "templates",
@@ -134,6 +135,8 @@ App.onLaunch = function(options) {
         if (success) {
             AppSettings.populate(hashConfig);
             API.update();
+            // Зеркало API, выбранное в прошлый раз; явный хост из #u=/#a= важнее
+            if (!hashConfig.u && !hashConfig.a) { ApiHosts.restore(); }
             if (Auth.check()) { initApp(); } else { showActivationPage(); }
             if (options.AS_PLAYLIST && options.AS_PLAYLIST == "true") {
                 showSetDefaultUrlAlert();
@@ -215,9 +218,10 @@ function initApp() {
     }, 3600000);
 
     // Cache purger interval
+    // Cache.get() сам проверяет срок записи, таймер нужен только чтобы память не росла
     globalCachePurgerInterval = setInterval(function() {
         Cache.scan();
-    }, 5000);
+    }, 300000);
 
     if (!runAfterLoad) { AfterLoad.get(); }
     if (runAfterLoad) { run(runAfterLoad.id, runAfterLoad.type, runAfterLoad.action) }

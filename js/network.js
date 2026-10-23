@@ -39,9 +39,12 @@ var Network = (function() {
             _callback = function(xhr) {
                 var json = { status: 0 }
                 var status = xhr.status;
-                if (xhr.status == 0 && JSON.parse(xhr.responseText)) {
-                    json = JSON.parse(xhr.responseText);
-                } 
+                try {
+                    if (xhr.status == 0 && xhr.responseText) { json = JSON.parse(xhr.responseText); }
+                } catch (e) {
+                    // не JSON — обычная сетевая ошибка, обработается ниже
+                }
+
                 if (status == 401 || json.status == 401) {
                     authErrors.push('Token n status: ' + xhr.status + ' ' + xhr.responseText);
                     Log.sendLog('Token n status: ' + xhr.status + ' ' + xhr.responseText)
@@ -59,6 +62,12 @@ var Network = (function() {
                         if (callback) { callback(result, options) }
                     }
                 } else {
+                    if (status == 0 && typeof ApiHosts !== 'undefined' && ApiHosts.switchToNext()) {
+                        // Сервер недоступен — пробуем следующее зеркало и повторяем этот запрос
+                        console.log('Network: retrying via ' + ApiHosts.current().name);
+                        Network.loadItemsFrom(options, callback, true);
+                        return;
+                    }
                     retryRequests.push({'options' : options, 'callback' : callback})
                     Ajax.abortAll();
                     //retryRequest = {'options' : options, 'callback' : callback}

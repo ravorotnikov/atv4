@@ -12,6 +12,7 @@ const KEYS = {
     traktExpiresToken: "trakt_expiresToken",
     tvBootUrl: "tvBootUrl",
     defaultBootUrlDenied: "defaultBootUrlDenied",
+    apiHost: "apiHost",
 }
 
 const KINOPUB = {
@@ -24,6 +25,14 @@ const KINOPUB = {
     cdnUrl: "https://proxykp.xyz/cdn/",
     proxyUrl: "https://proxykp.xyz",
     replaceApiCdn: false,
+    // Зеркала API (см. js/hosts.js). Первое — умолчание, совпадает с apiBase выше.
+    // api: префикс, к которому добавляются /v1/ и /oauth2/; ext2 — префикс для /v1.1/;
+    // cdn — хост картинок. Все три проверены 2026-10-23: отвечают штатным 401 без токена.
+    apiHosts: [
+        { name: "proxykp.xyz", api: "https://proxykp.xyz/api", ext2: "https://proxykp.xyz/api2", cdn: "https://proxykp.xyz/cdn" },
+        { name: "api.service-kp.com", api: "https://api.service-kp.com", cdn: "https://m.pushbr.com" },
+        { name: "api.srvkp.com", api: "https://api.srvkp.com", cdn: "https://m.pushbr.com" }
+    ],
     clientID: "appletv2",
     clientSecret: "3z5124kj5liqy9gahnjr07qpj65ferl2"
 }

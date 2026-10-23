@@ -498,7 +498,40 @@ var Templates = {
                 </document>`;
     },
 
+    // Список с галочками: «Готово» и «Сбросить» сверху, дальше пункты (id = item-<id>)
+    alertWithChecklist(title, names, selectedIds) {
+        var buttons = '<button id="done"><text>Готово</text></button><button id="clear"><text>Сбросить</text></button>';
+        Object.keys(names).forEach(id => {
+            buttons += '<button id="item-' + id + '">' + this.fragments.checklistText(names[id], selectedIds.indexOf(id) >= 0) + '</button>';
+        });
+        return `<document>
+                    <alertTemplate>
+                        <title>${title}</title>
+                        ${buttons}
+                    </alertTemplate>
+                </document>`;
+    },
+
     fragments: {
+        checklistText(name, checked) {
+            return '<text>' + (checked ? '✓ ' : '') + name + '</text>';
+        },
+        // Перерисовать галочки у пунктов уже открытого списка
+        updateChecklistMarks(doc, names, selectedIds) {
+            var parser = Presenter.activeParser(doc);
+            Object.keys(names).forEach(id => {
+                var button = doc.getElementById('item-' + id);
+                if (!button) { return; }
+                parser.lsInput.stringData = this.checklistText(names[id], selectedIds.indexOf(id) >= 0).replace(/&/g, "&amp;").replace(/'/g, "&apos;");
+                parser.lsParser.parseWithContext(parser.lsInput, button, 2);
+            });
+        },
+        // Подпись кнопки фильтра: «Драма», «Драма, Комедия», «Драма, Комедия +2»
+        checklistSummary(names) {
+            if (names.length == 0) { return ''; }
+            if (names.length <= 2) { return names.join(', '); }
+            return names.slice(0, 2).join(', ') + ' +' + (names.length - 2);
+        },
         itemsShelf(options) {
             if (options.movies.length < 1) { return ''; }
             return `<shelf class="stack" id="${options.item.id}">

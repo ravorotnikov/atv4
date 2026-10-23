@@ -1,0 +1,80 @@
+# Раз в день проверяет kpapplication/atv4. Если там есть новые коммиты, сливает их
+# в ветку sync-upstream, прогоняет тесты и открывает pull request в year-range.
+# При конфликте в PR попадает апстрим как есть, конфликты разрешаются вручную.
+name: Sync with upstream
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM: https://github.com/kpapplication/atv4.git
+      BASE: year-range
+      HEAD: sync-upstream
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: year-range
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "$UPSTREAM"
+          git fetch upstream main
+
+      - name: Anything new?
+        id: check
+        run: |
+          count=$(git rev-list --count "$BASE..upstream/main")
+          echo "new=$count" >> "$GITHUB_OUTPUT"
+          echo "Новых коммитов в апстриме: $count"
+
+      - name: Is a sync PR already open?
+        if: steps.check.outputs.new != '0'
+        id: pr
+        run: |
+          open=$(gh pr list --head "$HEAD" --base "$BASE" --state open --json number --jq 'length')
+          echo "open=$open" >> "$GITHUB_OUTPUT"
+
+      - name: Merge upstream and run tests
+        if: steps.check.outputs.new != '0' && steps.pr.outputs.open == '0'
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$HEAD" "$BASE"
+          if git merge --no-edit upstream/main; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+            if node tools/test-filters.js; then echo "tests=ok" >> "$GITHUB_OUTPUT"; else echo "tests=failed" >> "$GITHUB_OUTPUT"; fi
+            git push -f origin "$HEAD"
+          else
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            echo "tests=skipped" >> "$GITHUB_OUTPUT"
+            git merge --abort
+            git push -f origin "upstream/main:refs/heads/$HEAD"
+          fi
+
+      - name: Open pull request
+        if: steps.merge.outcome == 'success'
+        run: |
+          log=$(git log --oneline "$BASE..upstream/main" | head -30)
+          title="Апстрим: $(git log -1 --format=%cs upstream/main), новых коммитов ${{ steps.check.outputs.new }}"
+          if [ "${{ steps.merge.outputs.conflict }}" = "true" ]; then
+            body="Слияние с апстримом дало конфликты, в PR ветка апстрима как есть. Разрешите конфликты в GitHub или локально."
+          else
+            body="Апстрим слит без конфликтов. Тесты: ${{ steps.merge.outputs.tests }}."
+          fi
+          printf '%s\n\nКоммиты апстрима:\n```\n%s\n```\n' "$body" "$log" > /tmp/body.md
+          gh pr create --base "$BASE" --head "$HEAD" --title "$title" --body-file /tmp/body.md

@@ -42,6 +42,10 @@ for (const out of ['application.js', 'bundle.js']) {
   fs.writeFileSync(path.join(dist, out), bundle);
 }
 fs.cpSync(path.join(root, 'img'), path.join(dist, 'img'), { recursive: true });
+// Приложение читает их с baseURL в рантайме (экран «О приложении», проверка версии)
+for (const name of ['VERSION', 'CHANGELOG']) {
+  fs.copyFileSync(path.join(root, name), path.join(dist, name));
+}
 fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>atv4</title><h1>atv4</h1>\n');
 
 console.log(`dist/application.js: ${modules.length} модулей, ${(bundle.length / 1024).toFixed(0)} КБ`);

@@ -1,0 +1,43 @@
+# Собирает однофайловую версию (tools/build.js) и публикует dist/ на GitHub Pages
+# при каждом пуше в year-range. Перед сборкой прогоняются тесты.
+name: Publish to GitHub Pages
+
+on:
+  push:
+    branches: [year-range]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Tests
+        run: node tools/test-filters.js
+      - name: Build single-file bundle
+        run: node tools/build.js
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

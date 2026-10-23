@@ -8,10 +8,11 @@ var KP = (function() {
     var optionsLibrary = [
         { items: 'types', title: 'Тип', selected: '', filters: { type: '' } },
         { items: 'references\/video-quality', title: 'Качество', selected: '', filters: { quality: '' } },
-        { items: 'genres', title: 'Жанр', selected: '', filters: { genre: '' } },
-        { items: 'countries', title: 'Страны', selected: '', filters: { country: '' } },
-        { items: '', kind: 'year', title: 'Год с', prefix: 'с ', selected: '', filters: { yearFrom: '' } },
-        { items: '', kind: 'year', title: 'Год до', prefix: 'до ', selected: '', filters: { yearTo: '' } }
+        { items: 'genres', title: 'Жанр', multi: true, selected: '', filters: { genre: '' } },
+        { items: 'countries', title: 'Страны', multi: true, selected: '', filters: { country: '' } },
+        { items: '', kind: 'year', title: 'Год', selected: '', filters: { year: '' } },
+        { items: '', kind: 'rating', title: 'Кинопоиск', prefix: 'КП ', selected: '', filters: { kinopoiskMin: '' } },
+        { items: '', kind: 'rating', title: 'IMDb', prefix: 'IMDb ', selected: '', filters: { imdbMin: '' } }
     ]
     var optionsLibrary2 = [
         { title: 'Последние добавленные', sort: '-created' },
@@ -301,14 +302,6 @@ var KP = (function() {
         }
     }
 
-    // Текущее значение фильтра библиотеки по имени ключа ('' если не выбран)
-    function getLibraryFilter(key) {
-        for (var i = 0; i < optionsLibrary.length; i++) {
-            if (key in optionsLibrary[i].filters) { return optionsLibrary[i].filters[key]; }
-        }
-        return '';
-    }
-
     function loadFiltered(itemToLoad, options, options2, callback) {
         var settings = AppSettings.getAll();
         for (index in options) {
@@ -320,11 +313,14 @@ var KP = (function() {
             itemToLoad.filters[key] = options[index].filters[key]
         }
         if (options) {
-            // "Год с" / "Год до" уходят в API одним параметром year=FROM-TO
-            var year = Utils.yearRange(itemToLoad.filters.yearFrom, itemToLoad.filters.yearTo);
-            delete itemToLoad.filters.yearFrom;
-            delete itemToLoad.filters.yearTo;
-            if (year) { itemToLoad.filters.year = year; } else { delete itemToLoad.filters.year; }
+            // Пороги рейтингов уходят в API массивом conditions[]; пустой год не отправляем
+            var conditions = [];
+            if (itemToLoad.filters.kinopoiskMin) { conditions.push('kinopoisk_rating>=' + itemToLoad.filters.kinopoiskMin); }
+            if (itemToLoad.filters.imdbMin) { conditions.push('imdb_rating>=' + itemToLoad.filters.imdbMin); }
+            delete itemToLoad.filters.kinopoiskMin;
+            delete itemToLoad.filters.imdbMin;
+            if (conditions.length) { itemToLoad.filters.conditions = conditions; } else { delete itemToLoad.filters.conditions; }
+            if (!itemToLoad.filters.year) { delete itemToLoad.filters.year; }
         }
         itemToLoad.filters['sort'] = options2[itemToLoad.options2].sort
         Network.loadItemsFrom(itemToLoad, function(result, options) {
@@ -339,30 +335,99 @@ var KP = (function() {
         }, true);
     }
 
-    function showDropDown(values, options) {
+    // Подпись фильтра на полосе фильтров библиотеки (lockup с тем же индексом, что у option)
+    function updateFilterLockup(option) {
+        var index = optionsLibrary.indexOf(option);
+        if (index < 0) { index = optionsLibrary.findIndex(item => item.title == option.title); }
+        if (index < 0) { return; }
         var activeParser = Presenter.activeParser(docs['library'])
+        var title = Templates.fragments.filterTitle(option);
+        activeParser.lsInput.stringData = '<description class ="text">' + title + ' <badge class="label" height="23" width="40" src="resource://button-dropdown" /></description>';
+        activeParser.lsParser.parseWithContext(activeParser.lsInput, activeParser.doc.getElementsByTagName("description").item(index), 5);
+    }
+
+    // Применить выбор фильтра: value уходит в API, text показывается на кнопке
+    function applyFilterSelection(option, value, text) {
+        var key = Object.keys(option.filters)[0]
+        option.filters[key] = value;
+        option.selected = text;
+        updateFilterLockup(option);
+        Presenter.dismissModal();
+        loadFiltered(itemForLibrary, optionsLibrary, optionsLibrary2);
+    }
+
+    function showDropDown(values, options) {
+        if (options.multi) { return showChecklist(values, options); }
         var template = Templates.alertWithButtons(options.title, values);
         var doc1 = Presenter.makeDocument(template, true);
         doc1.addEventListener("select", function(event) {
             var selectedElement = event.target;
-            if (selectedElement.tagName == "button") {
-                for (index in optionsLibrary) {
-                    if (optionsLibrary[index].title == options.title) {
-                        var key = Object.keys(options.filters)[0]
-                        var id = selectedElement.getAttribute('id');
-                        var text = selectedElement.getAttribute('textTitle');
-                        optionsLibrary[index].filters[key] = (id != 0) ? id : '';
-                        optionsLibrary[index].selected = (text != 'Отменить выбор') ? text : '';
-                        var title = Templates.fragments.filterTitle(optionsLibrary[index]);
-                        activeParser.lsInput.stringData = '<description class ="text">' + title + ' <badge class="label" height="23" width="40" src="resource://button-dropdown" /></description>';
-                        activeParser.lsParser.parseWithContext(activeParser.lsInput, activeParser.doc.getElementsByTagName("description").item(index), 5);
-                        Presenter.dismissModal();
-                        loadFiltered(itemForLibrary, optionsLibrary, optionsLibrary2);
-                    }
-                }
+            if (selectedElement.tagName != "button") { return; }
+            var id = selectedElement.getAttribute('id');
+            var text = selectedElement.getAttribute('textTitle');
+            if (id == 'custom') {
+                // «Свой диапазон…» у фильтра года: два шага, «с какого» и «по какой»
+                Presenter.dismissModal();
+                setTimeout(function() { showYearRangePicker(options); }, 400);
+                return;
             }
+            applyFilterSelection(options, (id != 0) ? id : '', (text != 'Отменить выбор') ? text : '');
         });
         Presenter.modalDocument(doc1);
+    }
+
+    // Свой диапазон лет: список «С какого года», затем «По какой год» (не раньше первого)
+    function showYearRangePicker(option) {
+        var years = Utils.range(Utils.minCatalogYear(), new Date().getFullYear()).reverse();
+        var fromValues = {};
+        years.forEach((year, index) => fromValues[index] = { id: year, name: year });
+        var docFrom = Presenter.makeDocument(Templates.alertWithButtons('С какого года', fromValues), true);
+        docFrom.addEventListener("select", function(event) {
+            if (event.target.tagName != "button") { return; }
+            var from = parseInt(event.target.getAttribute('id'), 10);
+            Presenter.dismissModal();
+            setTimeout(function() {
+                var toValues = {};
+                years.filter(year => year >= from).forEach((year, index) => toValues[index] = { id: year, name: year });
+                var docTo = Presenter.makeDocument(Templates.alertWithButtons('По какой год', toValues), true);
+                docTo.addEventListener("select", function(event2) {
+                    if (event2.target.tagName != "button") { return; }
+                    var to = parseInt(event2.target.getAttribute('id'), 10);
+                    var label = (from == to) ? String(from) : from + '–' + to;
+                    applyFilterSelection(option, Utils.yearRange(from, to), label);
+                });
+                Presenter.modalDocument(docTo);
+            }, 400);
+        });
+        Presenter.modalDocument(docFrom);
+    }
+
+    // Список с галочками для фильтров с несколькими значениями (жанры, страны).
+    // Пункты переключаются на месте, «Готово» применяет, «Сбросить» снимает все галочки.
+    function showChecklist(values, option) {
+        var ids = (option.selectedIds || []).slice();
+        var names = {};
+        Object.values(values).forEach(value => { if (value.id != 0) { names[String(value.id)] = String(value.name); } });
+        var doc = Presenter.makeDocument(Templates.alertWithChecklist(option.title, names, ids), true);
+        doc.addEventListener("select", function(event) {
+            var el = event.target;
+            if (el.tagName != "button") { return; }
+            var id = el.getAttribute('id');
+            if (id == 'done') {
+                option.selectedIds = ids;
+                applyFilterSelection(option, ids.join(','), Templates.fragments.checklistSummary(ids.map(i => names[i])));
+                return;
+            }
+            if (id == 'clear') {
+                ids.length = 0;
+            } else if (id.indexOf('item-') == 0) {
+                var itemId = id.slice(5);
+                var pos = ids.indexOf(itemId);
+                if (pos >= 0) { ids.splice(pos, 1); } else { ids.push(itemId); }
+            }
+            Templates.fragments.updateChecklistMarks(doc, names, ids);
+        });
+        Presenter.modalDocument(doc);
     }
 
     function saveDeviceSettings(result) {
@@ -1032,16 +1097,20 @@ var KP = (function() {
             if (optionsLibrary[optionsIndex].items == "genres") {
                 optionsLibrary[optionsIndex].filters['type'] = optionsLibrary[0].filters['type']
             }
-            if (optionsLibrary[optionsIndex].kind == "year") {
-                // Границы списка сужаются выбранным значением второго фильтра года
-                var yearFrom = parseInt(getLibraryFilter('yearFrom'), 10);
-                var yearTo = parseInt(getLibraryFilter('yearTo'), 10);
-                var first = Utils.minCatalogYear(), last = new Date().getFullYear();
-                if ('yearTo' in optionsLibrary[optionsIndex].filters && !isNaN(yearFrom)) { first = Math.min(yearFrom, last); }
-                if ('yearFrom' in optionsLibrary[optionsIndex].filters && !isNaN(yearTo)) { last = Math.max(yearTo, first); }
-                var years = Utils.range(first, last).reverse();
-                years.forEach((year, index) => values[index + 1] = { id: year, name: year });
-                showDropDown(values, optionsLibrary[optionsIndex])
+            var option = optionsLibrary[optionsIndex];
+            if (option.kind == "year") {
+                // Готовые периоды по десятилетиям плюс свой диапазон; id — значение параметра year
+                var thisYear = new Date().getFullYear();
+                var decade = Math.floor(thisYear / 10) * 10;
+                var n = 1;
+                values[n++] = { id: decade + '-' + Utils.maxCatalogYear(), name: decade + '-е' };
+                for (var d = decade - 10; d >= 1950; d -= 10) { values[n++] = { id: d + '-' + (d + 9), name: d + '-е' }; }
+                values[n++] = { id: Utils.minCatalogYear() + '-1949', name: 'до 1950' };
+                values[n++] = { id: 'custom', name: 'Свой диапазон…' };
+                showDropDown(values, option)
+            } else if (option.kind == "rating") {
+                [5, 6, 7, 7.5, 8, 8.5, 9].forEach((rating, index) => values[index + 1] = { id: rating, name: 'от ' + rating });
+                showDropDown(values, option)
             } else {
                 Network.loadItemsFrom(optionsLibrary[optionsIndex], function(result, options) {
                     console.log(result)
