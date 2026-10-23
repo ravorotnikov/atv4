@@ -5,9 +5,9 @@
 //
 //   node tools/test-filters.js
 //
-// Покрытие: фильтр года (пресеты и свой диапазон), пороги рейтингов (conditions[]),
-// мультивыбор жанров, сериализация массивов в URL, обработчик таймаута,
-// переключение зеркал API при обрыве сети.
+// Покрытие: фильтр года (пресеты и свой диапазон), мультивыбор жанров,
+// сериализация массивов в URL, обработчик таймаута, переключение зеркал API
+// при обрыве сети.
 
 const fs = require('fs');
 const path = require('path');
@@ -98,7 +98,7 @@ const baseGlobals = () => ({
   };
 
   // Индексы в optionsLibrary (см. начало js/kp.js)
-  const GENRE = 2, YEAR = 4, IMDB = 5;
+  const GENRE = 2, YEAR = 4;
 
   // --- Utils.yearRange ---------------------------------------------------
   assert.strictEqual(Utils.yearRange('', ''), '');
@@ -110,7 +110,7 @@ const baseGlobals = () => ({
 
   // --- подписи ------------------------------------------------------------
   assert.strictEqual(Templates.fragments.filterTitle({ title: 'Год', selected: '' }), 'Год');
-  assert.strictEqual(Templates.fragments.filterTitle({ title: 'IMDb', prefix: 'IMDb ', selected: 'от 7' }), 'IMDb от 7');
+  assert.strictEqual(Templates.fragments.filterTitle({ title: 'Жанр', prefix: 'жанр: ', selected: 'Драма' }), 'жанр: Драма');
   assert.strictEqual(Templates.fragments.checklistSummary([]), '');
   assert.strictEqual(Templates.fragments.checklistSummary(['Драма']), 'Драма');
   assert.strictEqual(Templates.fragments.checklistSummary(['Драма', 'Комедия']), 'Драма, Комедия');
@@ -131,7 +131,7 @@ const baseGlobals = () => ({
   modalsOpen = 0; // выпадашку выше открывали только для осмотра
   let f = pick(YEAR, '2010-2019', '2010-е');
   assert.strictEqual(f.year, '2010-2019');
-  assert.ok(!('conditions' in f) && !('imdbMin' in f), 'служебные ключи не уходят');
+  assert.ok(!('conditions' in f), 'лишних ключей нет');
   assert.strictEqual(f.sort, '-created');
   assert.strictEqual(lastLockupTitle(), '2010-е');
   assert.strictEqual(modalsOpen, 0, 'модалка закрыта после выбора');
@@ -166,17 +166,6 @@ const baseGlobals = () => ({
   assert.ok(!('year' in f), 'без выбора параметр year не отправляется');
   assert.strictEqual(lastLockupTitle(), 'Год');
   console.log('ok  год: свой диапазон и сброс');
-
-  // --- рейтинг IMDb ---------------------------------------------------------
-  KP.getDropDown(IMDB);
-  assert.strictEqual(lastDropdown.title, 'IMDb');
-  assert.deepStrictEqual(lastDropdown.values.slice(1).map((v) => v.name), ['от 5', 'от 6', 'от 7', 'от 7.5', 'от 8', 'от 8.5', 'от 9']);
-  f = pick(IMDB, 7.5, 'от 7.5');
-  assert.deepStrictEqual(f.conditions, ['imdb_rating>=7.5']);
-  assert.strictEqual(lastLockupTitle(), 'IMDb от 7.5');
-  f = pick(IMDB, 0, 'Отменить выбор');
-  assert.ok(!('conditions' in f));
-  console.log('ok  рейтинг IMDb через conditions[]');
 
   // --- жанры: мультивыбор --------------------------------------------------
   const modalsBefore = modalsOpen;

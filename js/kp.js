@@ -10,8 +10,7 @@ var KP = (function() {
         { items: 'references\/video-quality', title: 'Качество', selected: '', filters: { quality: '' } },
         { items: 'genres', title: 'Жанр', multi: true, selected: '', filters: { genre: '' } },
         { items: 'countries', title: 'Страны', multi: true, selected: '', filters: { country: '' } },
-        { items: '', kind: 'year', title: 'Год', selected: '', filters: { year: '' } },
-        { items: '', kind: 'rating', title: 'IMDb', prefix: 'IMDb ', selected: '', filters: { imdbMin: '' } }
+        { items: '', kind: 'year', title: 'Год', selected: '', filters: { year: '' } }
     ]
     var optionsLibrary2 = [
         { title: 'Последние добавленные', sort: '-created' },
@@ -311,13 +310,9 @@ var KP = (function() {
             }
             itemToLoad.filters[key] = options[index].filters[key]
         }
-        if (options) {
-            // Порог рейтинга уходит в API массивом conditions[]; пустой год не отправляем
-            var conditions = [];
-            if (itemToLoad.filters.imdbMin) { conditions.push('imdb_rating>=' + itemToLoad.filters.imdbMin); }
-            delete itemToLoad.filters.imdbMin;
-            if (conditions.length) { itemToLoad.filters.conditions = conditions; } else { delete itemToLoad.filters.conditions; }
-            if (!itemToLoad.filters.year) { delete itemToLoad.filters.year; }
+        if (options && !itemToLoad.filters.year) {
+            // Пустой год не отправляем
+            delete itemToLoad.filters.year;
         }
         itemToLoad.filters['sort'] = options2[itemToLoad.options2].sort
         Network.loadItemsFrom(itemToLoad, function(result, options) {
@@ -1107,9 +1102,6 @@ var KP = (function() {
                 values[n++] = { id: decade + '-' + Utils.maxCatalogYear(), name: decade + '-е' };
                 for (var d = decade - 10; d >= 1950; d -= 10) { values[n++] = { id: d + '-' + (d + 9), name: d + '-е' }; }
                 values[n++] = { id: Utils.minCatalogYear() + '-1949', name: 'до 1950' };
-                showDropDown(values, option)
-            } else if (option.kind == "rating") {
-                [5, 6, 7, 7.5, 8, 8.5, 9].forEach((rating, index) => values[index + 1] = { id: rating, name: 'от ' + rating });
                 showDropDown(values, option)
             } else {
                 Network.loadItemsFrom(optionsLibrary[optionsIndex], function(result, options) {
