@@ -63,6 +63,8 @@ const baseGlobals = () => ({
         const listeners = {};
         const doc = {
           template,
+          // kp.js makeDocument() берёт парсер из документа
+          implementation: { createLSParser: () => ({ parseWithContext() {} }), createLSInput: () => ({}) },
           getElementById: (id) => (template.includes(`id="${id}"`) ? { id } : null),
           getElementsByTagName: () => ({ item: (i) => ({ lockupIndex: i }) }),
           addEventListener: (name, fn) => { listeners[name] = fn; },
@@ -226,13 +228,15 @@ const baseGlobals = () => ({
     if (itemToLoad.items === 'history') {
       historyLoads.push(itemToLoad);
       callback({ history: [{ item: { id: 11, type: 'movie', title: 'A' }, media: { id: 1 }, last_seen: 5 }], pagination: { current: 1, total: 1 } }, itemToLoad);
+      return;
     }
+    requests.push(JSON.parse(JSON.stringify(itemToLoad)));
   };
   KP.historyPage();
   const historyDoc = lastDoc;
   historyDoc.fire('load');
   assert.strictEqual(historyLoads.length, 1, 'история запрошена один раз при загрузке');
-  assert.deepStrictEqual(historyLoads[0], { items: 'history', type: null, from: null, id: 'history', title: 'История' });
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(historyLoads[0])), { items: 'history', type: null, from: null, id: 'history', title: 'История' });
   const page = replaced.find((r) => r.action === 5 && r.xml.includes('<stackTemplate>'));
   assert.ok(page && page.xml.includes('<title>История</title>') && page.xml.includes('id="history"'), 'документ заменён страницей истории');
   const grid = replaced.filter((r) => r.action === 2).pop();
