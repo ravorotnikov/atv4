@@ -82,6 +82,22 @@ var Utils = {
         if (start === end) return [start];
         return [start, ...Utils.range(start + 1, end)];
     },
+    // Первый год в каталоге и последний (с запасом на анонсы следующего года)
+    minCatalogYear() { return 1912; },
+    maxCatalogYear() { return new Date().getFullYear() + 1; },
+    // Собирает значение параметра `year` API из границ "с" и "до".
+    // Пусто -> '', одна граница -> диапазон до края каталога, обе -> 'from-to',
+    // равные -> один год. Перепутанные границы меняются местами.
+    yearRange(from, to) {
+        from = parseInt(from, 10);
+        to = parseInt(to, 10);
+        var hasFrom = !isNaN(from), hasTo = !isNaN(to);
+        if (!hasFrom && !hasTo) { return ''; }
+        if (!hasFrom) { from = Utils.minCatalogYear(); }
+        if (!hasTo) { to = Utils.maxCatalogYear(); }
+        if (from > to) { var t = from; from = to; to = t; }
+        return (from === to) ? String(from) : from + '-' + to;
+    },
     isSerial(item) {
         return (item.type == 'serial' || item.type == 'docuserial' || item.type == 'tvshow');
     },

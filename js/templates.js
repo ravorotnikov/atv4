@@ -653,8 +653,12 @@ var Templates = {
                         </relatedContent>
                     </listItemLockup>`
         },
+        // Подпись фильтра: название, пока ничего не выбрано, иначе выбранное значение с префиксом ("с 2010")
+        filterTitle(option) {
+            return (option.selected == '') ? option.title : (option.prefix || '') + option.selected;
+        },
         lockup(option, index) {
-            var title = (option.selected == '') ? option.title : option.selected;
+            var title = this.filterTitle(option);
             return `<lockup onselect="KP.getDropDown('${index}');">
                         <overlay>
                             <description class="text">${title}  <badge class="label" height="23" width="40" src="resource://button-dropdown" /></description>

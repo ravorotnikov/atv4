@@ -130,7 +130,7 @@ App.onLaunch = function(options) {
         navigationDocument.pushDocument(loadingDocument);
     }
 
-    evaluateScripts(javascriptFiles, function(success) {
+    var onModulesLoaded = function(success) {
         if (success) {
             AppSettings.populate(hashConfig);
             API.update();
@@ -142,7 +142,14 @@ App.onLaunch = function(options) {
             showAlert("Произошла ошибка при загрузке внешних модулей. Проверьте ваше подключение к интернету и повторите попытку позже, перезагрузив приложение. На пульте Apple TV Remote дважды быстро нажмите кнопку «Домой». Смахните вверх по поверхности Touch на пульте Apple TV Remote.");
             throw new EvalError("TVMLCatalog application.js: unable to evaluate scripts.");
         }
-    });
+    };
+
+    if (typeof __ATV4_BUNDLED__ !== 'undefined') {
+        // Однофайловая сборка (tools/build.js): модули уже в этом файле, грузить js/*.js не нужно
+        setTimeout(function() { onModulesLoaded(true); }, 100);
+    } else {
+        evaluateScripts(javascriptFiles, onModulesLoaded);
+    }
 
     checkDEV();
 }

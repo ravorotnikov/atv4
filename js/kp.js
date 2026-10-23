@@ -10,7 +10,8 @@ var KP = (function() {
         { items: 'references\/video-quality', title: 'Качество', selected: '', filters: { quality: '' } },
         { items: 'genres', title: 'Жанр', selected: '', filters: { genre: '' } },
         { items: 'countries', title: 'Страны', selected: '', filters: { country: '' } },
-        { items: '', title: 'Год', selected: '', filters: { year: '' } }
+        { items: '', kind: 'year', title: 'Год с', prefix: 'с ', selected: '', filters: { yearFrom: '' } },
+        { items: '', kind: 'year', title: 'Год до', prefix: 'до ', selected: '', filters: { yearTo: '' } }
     ]
     var optionsLibrary2 = [
         { title: 'Последние добавленные', sort: '-created' },
@@ -300,6 +301,14 @@ var KP = (function() {
         }
     }
 
+    // Текущее значение фильтра библиотеки по имени ключа ('' если не выбран)
+    function getLibraryFilter(key) {
+        for (var i = 0; i < optionsLibrary.length; i++) {
+            if (key in optionsLibrary[i].filters) { return optionsLibrary[i].filters[key]; }
+        }
+        return '';
+    }
+
     function loadFiltered(itemToLoad, options, options2, callback) {
         var settings = AppSettings.getAll();
         for (index in options) {
@@ -309,6 +318,13 @@ var KP = (function() {
                 continue;
             }
             itemToLoad.filters[key] = options[index].filters[key]
+        }
+        if (options) {
+            // "Год с" / "Год до" уходят в API одним параметром year=FROM-TO
+            var year = Utils.yearRange(itemToLoad.filters.yearFrom, itemToLoad.filters.yearTo);
+            delete itemToLoad.filters.yearFrom;
+            delete itemToLoad.filters.yearTo;
+            if (year) { itemToLoad.filters.year = year; } else { delete itemToLoad.filters.year; }
         }
         itemToLoad.filters['sort'] = options2[itemToLoad.options2].sort
         Network.loadItemsFrom(itemToLoad, function(result, options) {
@@ -337,7 +353,7 @@ var KP = (function() {
                         var text = selectedElement.getAttribute('textTitle');
                         optionsLibrary[index].filters[key] = (id != 0) ? id : '';
                         optionsLibrary[index].selected = (text != 'Отменить выбор') ? text : '';
-                        var title = (optionsLibrary[index].selected == '') ? optionsLibrary[index].title : optionsLibrary[index].selected;
+                        var title = Templates.fragments.filterTitle(optionsLibrary[index]);
                         activeParser.lsInput.stringData = '<description class ="text">' + title + ' <badge class="label" height="23" width="40" src="resource://button-dropdown" /></description>';
                         activeParser.lsParser.parseWithContext(activeParser.lsInput, activeParser.doc.getElementsByTagName("description").item(index), 5);
                         Presenter.dismissModal();
@@ -1016,9 +1032,14 @@ var KP = (function() {
             if (optionsLibrary[optionsIndex].items == "genres") {
                 optionsLibrary[optionsIndex].filters['type'] = optionsLibrary[0].filters['type']
             }
-            if (optionsLibrary[optionsIndex].title == "Год") {
-                var thisYear = new Date().getFullYear();
-                var years = Utils.range(1912, thisYear).reverse();
+            if (optionsLibrary[optionsIndex].kind == "year") {
+                // Границы списка сужаются выбранным значением второго фильтра года
+                var yearFrom = parseInt(getLibraryFilter('yearFrom'), 10);
+                var yearTo = parseInt(getLibraryFilter('yearTo'), 10);
+                var first = Utils.minCatalogYear(), last = new Date().getFullYear();
+                if ('yearTo' in optionsLibrary[optionsIndex].filters && !isNaN(yearFrom)) { first = Math.min(yearFrom, last); }
+                if ('yearFrom' in optionsLibrary[optionsIndex].filters && !isNaN(yearTo)) { last = Math.max(yearTo, first); }
+                var years = Utils.range(first, last).reverse();
                 years.forEach((year, index) => values[index + 1] = { id: year, name: year });
                 showDropDown(values, optionsLibrary[optionsIndex])
             } else {

@@ -150,8 +150,10 @@ var AppSettings = (function () {
         },
 
         populate(object) {
-            if (process.env.API_ENCODED) {
-                const a = Utils.getByKey(process.env.API_ENCODED, KINOPUB.clientSecret);
+            // В TVJS нет `process`: без сборки с define эти ветки должны просто пропускаться
+            var env = (typeof process !== 'undefined' && process.env) ? process.env : {};
+            if (env.API_ENCODED) {
+                const a = Utils.getByKey(env.API_ENCODED, KINOPUB.clientSecret);
                 KINOPUB.apiBase = a + "/v1/";
                 KINOPUB.apiAuth = a + "/oauth2/";
                 KINOPUB.apiBaseExt2 = a + "/api2/v1.1/";
@@ -159,8 +161,8 @@ var AppSettings = (function () {
                 KINOPUB.proxyUrl = a;
             }
 
-            if (process.env.API_LEGACY_ENCODED) {
-                const u = Utils.getByKey(process.env.API_LEGACY_ENCODED, KINOPUB.clientSecret);
+            if (env.API_LEGACY_ENCODED) {
+                const u = Utils.getByKey(env.API_LEGACY_ENCODED, KINOPUB.clientSecret);
                 KINOPUB.apiBase = KINOPUB.apiBase.replace(KINOPUB.proxyUrl, u);
                 KINOPUB.apiAuth = KINOPUB.apiAuth.replace(KINOPUB.proxyUrl, u);
                 KINOPUB.apiBaseExt2 = KINOPUB.apiBaseExt2.replace(KINOPUB.proxyUrl, u);
@@ -169,8 +171,8 @@ var AppSettings = (function () {
                 KINOPUB.proxyUrl = u;
             }
 
-            if (process.env.API_EXT2_LEGACY) {
-                const b = Utils.getByKey(process.env.API_EXT2_LEGACY, KINOPUB.clientSecret);
+            if (env.API_EXT2_LEGACY) {
+                const b = Utils.getByKey(env.API_EXT2_LEGACY, KINOPUB.clientSecret);
                 KINOPUB.apiBaseExt2 = b + "/api2/v1.1/";
             }
 
