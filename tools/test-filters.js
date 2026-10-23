@@ -40,6 +40,7 @@ const baseGlobals = () => ({
 
   const sandbox = Object.assign(baseGlobals(), {
     MenuItemDoc: null,
+    baseURL: 'https://example.test/',
     AppSettings: { getAll: () => ({ animeIsHidden: { id: 0 } }), get: () => ({ id: 0 }) },
     AppStorage: { getItem: () => '', getData: () => '', setData() {}, removeData() {} },
     Network: {
@@ -205,6 +206,43 @@ const baseGlobals = () => ({
   assert.strictEqual(lastFilters().genre, '');
   assert.strictEqual(lastLockupTitle(), 'Жанр');
   console.log('ok  жанры: мультивыбор с галочками');
+
+  // --- шапка: «История» вместо «ТВ» ------------------------------------------
+  const menu = Templates.menuBar();
+  assert.ok(menu.includes('id = "History"') && menu.includes('<title>История</title>'));
+  assert.ok(!menu.includes('id = "TV"'), 'пункт ТВ убран из шапки');
+  assert.ok(menu.indexOf('id = "AllMovies"') < menu.indexOf('id = "History"') && menu.indexOf('id = "History"') < menu.indexOf('id = "Settings"'), 'История между Библиотекой и настройками');
+
+  // --- страница истории ------------------------------------------------------
+  Templates.fragments.itemPoster = (item, w, h, shelf, historyItem) => `<lockup id="h${item.id}" seen="${historyItem.last_seen}"/>`;
+  const replaced = [];
+  sandbox.Presenter.activeParser = (doc) => ({
+    lsInput: {},
+    lsParser: { parseWithContext(input, element, action) { replaced.push({ xml: input.stringData, action, element }); } },
+    doc: Object.assign({ getElementsByTagName: () => ({ item: (i) => ({ tag: i }) }), getElementById: (id) => ({ id }) }, doc || {}),
+  });
+  const historyLoads = [];
+  sandbox.Network.loadItemsFrom = (itemToLoad, callback) => {
+    if (itemToLoad.items === 'history') {
+      historyLoads.push(itemToLoad);
+      callback({ history: [{ item: { id: 11, type: 'movie', title: 'A' }, media: { id: 1 }, last_seen: 5 }], pagination: { current: 1, total: 1 } }, itemToLoad);
+    }
+  };
+  KP.historyPage();
+  const historyDoc = lastDoc;
+  historyDoc.fire('load');
+  assert.strictEqual(historyLoads.length, 1, 'история запрошена один раз при загрузке');
+  assert.deepStrictEqual(historyLoads[0], { items: 'history', type: null, from: null, id: 'history', title: 'История' });
+  const page = replaced.find((r) => r.action === 5 && r.xml.includes('<stackTemplate>'));
+  assert.ok(page && page.xml.includes('<title>История</title>') && page.xml.includes('id="history"'), 'документ заменён страницей истории');
+  const grid = replaced.filter((r) => r.action === 2).pop();
+  assert.ok(grid.xml.includes('id="h11"') && grid.xml.includes('seen="5"'), 'в секцию history вставлены постеры из result.history');
+  assert.ok(grid.xml.includes('Конец'), 'в конце сетки заглушка «Конец», как в библиотеке');
+  historyDoc.fire('appear');
+  assert.strictEqual(historyLoads.length, 1, 'первый appear сразу после load не грузит повторно');
+  historyDoc.fire('appear');
+  assert.strictEqual(historyLoads.length, 2, 'возврат на вкладку обновляет историю');
+  console.log('ok  шапка: «История» вместо «ТВ», страница истории');
 
   // --- страница актёра (options == null) не трогает фильтры ----------------
   KP.getSort('actor');

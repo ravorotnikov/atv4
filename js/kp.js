@@ -1067,6 +1067,30 @@ var KP = (function() {
             }, true);
         },
 
+        // HISTORY (пункт шапки вместо «ТВ»)
+        historyPage() {
+            currentType = 'history';
+            makeDocument('Загрузка истории');
+            var doc = docs[currentType];
+            var itemToLoad = { items: 'history', type: null, from: null, id: 'history', title: 'История' };
+            var renderHistory = function() {
+                Network.loadItemsFrom(itemToLoad, function(result, options) {
+                    var movies = getItemsTemplate(result, options, true);
+                    replaceElement(`${movies.join('')}`, null, "history", 2, doc);
+                }, true);
+            };
+            doc.addEventListener("load", function() {
+                replaceElement(Templates.historyPage(), "document", null, 5, doc);
+                doc.justLoaded = true;
+                renderHistory();
+            });
+            // Вернулись на вкладку после просмотра — история могла измениться
+            doc.addEventListener("appear", function() {
+                if (doc.justLoaded) { doc.justLoaded = false; return; }
+                renderHistory();
+            });
+        },
+
         // LIBRARY
         libraryPage() {
             currentType = 'library';

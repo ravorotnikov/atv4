@@ -22,7 +22,7 @@ var Templates = {
                         <menuItem id = "ShowsPage"><title>Сериалы</title></menuItem>
                         <menuItem id = "MySubscribes"><title>Мои</title></menuItem>
                         <menuItem id = "AllMovies"><title>Библиотека</title></menuItem>
-                        <menuItem id = "TV"><title>ТВ</title></menuItem>
+                        <menuItem id = "History"><title>История</title></menuItem>
                         <menuItem id = "Settings"><title>&#9881;</title></menuItem>
                     </menuBar>
                 </menuBarTemplate>
@@ -412,6 +412,31 @@ var Templates = {
                             </section>
                         </list>
                     </compilationTemplate>
+                </document>`;
+    },
+
+    // Страница «История»: сетка просмотренного, секция id="history" переиспользуется
+    // deleteHistory() для перерисовки после удаления записи (удержание на постере)
+    historyPage() {
+        return `<document>
+                    <head>
+                        <style>
+                            @media tv-template and (tv-theme:dark) {.nextButton{font-size: 40; text-align: center; color: white; background-color: rgb (255,255,255);}} 
+                            @media tv-template and (tv-theme:light) {.nextButton{font-size: 40; text-align: center; color: black; background-color: rgb (0,0,0);}}
+                        </style>
+                    </head>
+                    <stackTemplate>
+                        <banner>
+                            <title>История</title>
+                        </banner>
+                        <collectionList>
+                            <grid>
+                                <section id="history">
+                                    <activityIndicator></activityIndicator>
+                                </section>
+                            </grid>
+                        </collectionList>
+                    </stackTemplate>
                 </document>`;
     },
 

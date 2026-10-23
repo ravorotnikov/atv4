@@ -263,6 +263,9 @@ function updateMenuItem(menuItem, targetFunction) {
         case 'Search':
             KP.searchPage();
             break;
+        case 'History':
+            KP.historyPage();
+            break;
         case 'TV':
             KP.TVPage();
             break;
